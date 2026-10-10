@@ -7,6 +7,7 @@ import {
   Heart,
   Image as ImageIcon,
   Instagram,
+  MessageCircle,
   Search,
   Sparkles,
   SlidersHorizontal,
@@ -187,6 +188,18 @@ function App() {
         <p>Seu jogo. Seu estilo.</p>
         <a href="#inicio"><ArrowLeft size={15} /> Voltar ao topo</a>
       </footer>
+
+      <a
+        className="whatsapp-button"
+        href="https://wa.me/5561984385187?text=Ol%C3%A1!%20Vi%20o%20cat%C3%A1logo%20de%20camisas%20e%20gostaria%20de%20mais%20informa%C3%A7%C3%B5es."
+        target="_blank"
+        rel="noreferrer"
+        aria-label="Falar pelo WhatsApp"
+        title="Falar pelo WhatsApp"
+      >
+        <MessageCircle size={23} />
+        <span>WhatsApp</span>
+      </a>
 
       {produtoAberto && <Gallery produto={produtoAberto} onClose={() => setProdutoAberto(null)} />}
     </div>
