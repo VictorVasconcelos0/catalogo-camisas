@@ -19,6 +19,17 @@ TERMOS_EXCLUIDOS = (
     "factory",
     "banner",
     "packaging",
+    "sizes",
+    "size",
+    "notice",
+    "clearance",
+    "sale",
+    "stock",
+    "training",
+    "windbreaker",
+    "top",
+    "promotion",
+    "promo",
 )
 MIN_DIMENSAO_PRODUTO = 300
 PROPORCAO_MINIMA = 0.70
