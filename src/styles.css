@@ -73,6 +73,7 @@ h2 strong { color: #ff4c7a; font-weight: 600; }
 footer { align-items: center; background: #10131f; display: flex; justify-content: space-between; padding: 28px 5vw; }
 footer p, footer a { color: #777c8e; font: 11px "DM Mono"; }
 footer a { align-items: center; display: flex; gap: 6px; text-decoration: none; }
+.footer-links { align-items: center; display: flex; gap: 18px; }
 .whatsapp-button { align-items: center; background: #25d366; border: 2px solid rgba(255,255,255,.9); border-radius: 999px; bottom: 22px; box-shadow: 0 10px 28px rgba(11,72,38,.32); color: #062e18; display: inline-flex; font-size: 12px; font-weight: 700; gap: 8px; padding: 13px 17px; position: fixed; right: 22px; text-decoration: none; transition: background .2s, transform .2s, box-shadow .2s; z-index: 8; }
 .whatsapp-icon { height: 23px; width: 23px; }
 .whatsapp-button:hover { background: #43e477; box-shadow: 0 12px 32px rgba(11,72,38,.42); transform: translateY(-3px); }
@@ -97,5 +98,33 @@ footer a { align-items: center; display: flex; gap: 6px; text-decoration: none; 
 .gallery-thumbs button.active { border-color: #ff4c7a; }
 .gallery-thumbs img { height: 100%; object-fit: cover; width: 100%; }
 @keyframes pulse { 50% { transform: scale(1.08); } }
+.admin-page { background: #10131f; color: #f4f2ed; min-height: 100vh; padding: 28px 5vw 70px; }
+.admin-page > .brand { margin-bottom: 55px; }
+.admin-login, .admin-message { background: #191d2c; border: 1px solid #30364d; border-radius: 8px; margin: 0 auto; max-width: 480px; padding: 32px; }
+.admin-login h1, .admin-message h1, .admin-header h1 { font-size: clamp(32px, 5vw, 54px); letter-spacing: -.06em; margin: 0 0 16px; }
+.admin-login > p:not(.eyebrow), .admin-message p { color: #9da2b3; line-height: 1.6; }
+.admin-login label, .admin-toolbar label { color: #aeb2c0; display: flex; flex-direction: column; font: 11px "DM Mono"; gap: 8px; }
+.admin-login input, .admin-toolbar select { background: #10131f; border: 1px solid #3b425a; border-radius: 4px; color: #fff; padding: 12px; }
+.admin-login label { margin-top: 18px; }
+.admin-primary, .admin-secondary, .upload-button { border: 0; border-radius: 4px; display: inline-flex; font: 11px "DM Mono"; margin-top: 22px; padding: 12px 16px; text-decoration: none; }
+.admin-primary { background: #ff4c7a; color: #fff; width: 100%; justify-content: center; }
+.admin-secondary { background: #292f43; color: #fff; margin: 0 0 0 8px; }
+.admin-login > a, .admin-message > a { color: #ff6f97; display: inline-block; font: 11px "DM Mono"; margin-top: 22px; }
+.admin-error, .admin-success { border-radius: 4px; font: 11px "DM Mono"; margin: 18px 0; padding: 12px; }
+.admin-error { background: rgba(255, 85, 108, .13); color: #ff8b9b; }
+.admin-success { background: rgba(101, 230, 176, .13); color: #7beabd; }
+.admin-header, .admin-toolbar { align-items: end; display: flex; justify-content: space-between; margin: auto; max-width: 1320px; }
+.admin-toolbar { align-items: center; background: #191d2c; border: 1px solid #30364d; border-radius: 6px; margin-top: 30px; padding: 16px; }
+.admin-toolbar select { min-width: 260px; }
+.upload-button { background: #ff4c7a; color: #fff; cursor: pointer; margin: 0; }
+.upload-button input { display: none; }
+.admin-photo-grid { display: grid; gap: 18px; grid-template-columns: repeat(5, 1fr); margin: 25px auto 0; max-width: 1320px; }
+.admin-photo { background: #191d2c; border: 1px solid #30364d; border-radius: 5px; overflow: hidden; }
+.admin-photo img { aspect-ratio: .86; display: block; object-fit: cover; width: 100%; }
+.admin-photo div { display: flex; gap: 5px; padding: 8px; }
+.admin-photo button { background: #30364d; border: 0; border-radius: 3px; color: #fff; flex: 1; font: 9px "DM Mono"; padding: 8px 4px; }
+.admin-photo button.danger { background: rgba(255, 85, 108, .22); color: #ff9aaa; }
+@media (max-width: 900px) { .admin-photo-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 600px) { .admin-page { padding: 20px; } .admin-header, .admin-toolbar { align-items: stretch; flex-direction: column; gap: 18px; } .admin-toolbar select { min-width: 0; width: 100%; } .admin-header > div:last-child { display: flex; } .admin-secondary { flex: 1; justify-content: center; margin: 0 4px 0 0; } .admin-photo-grid { gap: 8px; grid-template-columns: repeat(2, 1fr); } .admin-login, .admin-message { padding: 22px; } .footer-links { flex-wrap: wrap; } }
 @media (max-width: 900px) { .hero { padding-left: 7vw; } .hero-art { opacity: .55; right: -15%; width: 70%; } .product-grid { grid-template-columns: repeat(3, 1fr); } .filter-bar { align-items: stretch; flex-direction: column; } .filter-controls { justify-content: space-between; } }
 @media (max-width: 600px) { .topbar { height: 66px; padding: 0 20px; } .live-dot { display: none; } .hero { min-height: 540px; padding: 75px 25px; } .hero-art { opacity: .38; right: -42%; top: 110px; width: 110%; } .hero-text { font-size: 13px; } .catalog-section { padding: 55px 20px 75px; } .section-heading { align-items: start; flex-direction: column; gap: 18px; } .filter-bar { margin-top: 35px; } .filter-controls { flex-direction: column; } .search-box input { width: 100%; } .search-box, .select-wrap { width: 100%; } .product-grid { gap: 22px 10px; grid-template-columns: repeat(2, 1fr); } .card-info h3 { font-size: 12px; } .photo-count { left: 7px; top: 7px; } .favorite-button { right: 7px; top: 7px; } footer { align-items: start; flex-direction: column; gap: 18px; } .gallery-main { height: 59vh; } .gallery-meta h2 { font-size: 17px; max-width: 220px; } .whatsapp-button { bottom: 16px; right: 16px; padding: 12px; } .whatsapp-button span { display: none; } }

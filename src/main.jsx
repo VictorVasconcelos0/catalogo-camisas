@@ -12,6 +12,7 @@ import {
   SlidersHorizontal,
   X,
 } from "lucide-react";
+import { supabase, supabaseConfigurado } from "./supabase";
 import "./styles.css";
 
 const PUBLICOS = [
@@ -21,13 +22,60 @@ const PUBLICOS = [
 ];
 
 const basePath = import.meta.env.BASE_URL;
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || "";
 
 function asset(path) {
-  return `${basePath}${path}`;
+  return /^https?:\/\//i.test(path) ? path : `${basePath}${path}`;
+}
+
+function aplicarAlteracoes(base, changes, covers) {
+  const porProduto = new Map();
+  changes.forEach((change) => {
+    if (!porProduto.has(change.product_id)) porProduto.set(change.product_id, []);
+    porProduto.get(change.product_id).push(change);
+  });
+
+  return {
+    ...base,
+    produtos: base.produtos.map((produto) => {
+      const alteracoes = porProduto.get(produto.id) || [];
+      const ocultas = new Set(
+        alteracoes.filter((item) => item.action === "hidden").map((item) => item.photo_path),
+      );
+      const fotos = produto.fotos
+        .filter((foto) => !ocultas.has(foto))
+        .concat(
+          alteracoes
+            .filter((item) => item.action === "added")
+            .map((item) => item.photo_url || item.photo_path),
+        );
+      const capa = covers.find((item) => item.product_id === produto.id)?.photo_path;
+      return { ...produto, fotos, capa: capa && fotos.includes(capa) ? capa : (fotos[0] || produto.capa) };
+    }),
+  };
+}
+
+async function carregarCatalogo() {
+  const resposta = await fetch(asset("catalogo-manifest.json"));
+  if (!resposta.ok) throw new Error("Manifesto não encontrado");
+  const base = await resposta.json();
+  if (!supabase) return base;
+
+  const [{ data: changes, error: changesError }, { data: covers, error: coversError }] =
+    await Promise.all([
+      supabase.from("catalog_photo_changes").select("*"),
+      supabase.from("catalog_covers").select("*"),
+    ]);
+  if (changesError || coversError) {
+    console.error("Falha ao carregar alterações do Supabase:", changesError || coversError);
+    return base;
+  }
+  return aplicarAlteracoes(base, changes || [], covers || []);
 }
 
 function App() {
   const [catalogo, setCatalogo] = useState(null);
+  const [modoAdmin, setModoAdmin] = useState(window.location.hash === "#admin");
   const [publico, setPublico] = useState("todos");
   const [time, setTime] = useState("todos");
   const [busca, setBusca] = useState("");
@@ -37,13 +85,15 @@ function App() {
   );
 
   useEffect(() => {
-    fetch(asset("catalogo-manifest.json"))
-      .then((response) => {
-        if (!response.ok) throw new Error("Manifesto não encontrado");
-        return response.json();
-      })
-      .then(setCatalogo)
+    carregarCatalogo()
+      .then((catalogoAtual) => setCatalogo(catalogoAtual))
       .catch((error) => console.error("Falha ao carregar catálogo:", error));
+  }, []);
+
+  useEffect(() => {
+    const atualizarModo = () => setModoAdmin(window.location.hash === "#admin");
+    window.addEventListener("hashchange", atualizarModo);
+    return () => window.removeEventListener("hashchange", atualizarModo);
   }, []);
 
   useEffect(() => {
@@ -85,13 +135,17 @@ function App() {
     setTime("todos");
   }
 
-  if (!catalogo) {
+  if (!catalogo && !modoAdmin) {
     return (
       <main className="loading-screen">
         <div className="loading-mark"><Sparkles size={28} /></div>
         <p>Preparando o vestiário<span>...</span></p>
       </main>
     );
+  }
+
+  if (modoAdmin) {
+    return <AdminPage catalogo={catalogo} onCatalogoAtualizado={setCatalogo} />;
   }
 
   return (
@@ -183,7 +237,10 @@ function App() {
       <footer>
         <span className="brand"><span className="brand-mark"><Sparkles size={16} /></span><span>VESTIÁRIO</span></span>
         <p>Seu jogo. Seu estilo.</p>
-        <a href="#inicio"><ArrowLeft size={15} /> Voltar ao topo</a>
+        <div className="footer-links">
+          <a href="#admin">Administração</a>
+          <a href="#inicio"><ArrowLeft size={15} /> Voltar ao topo</a>
+        </div>
       </footer>
 
       <a
@@ -201,6 +258,169 @@ function App() {
       {produtoAberto && <Gallery produto={produtoAberto} onClose={() => setProdutoAberto(null)} />}
     </div>
   );
+}
+
+function AdminPage({ catalogo, onCatalogoAtualizado }) {
+  const [sessao, setSessao] = useState(null);
+  const [login, setLogin] = useState("administrador");
+  const [senha, setSenha] = useState("");
+  const [produtoId, setProdutoId] = useState("");
+  const [erro, setErro] = useState("");
+  const [mensagem, setMensagem] = useState("");
+  const [carregando, setCarregando] = useState(true);
+
+  useEffect(() => {
+    if (!supabase) {
+      setCarregando(false);
+      return undefined;
+    }
+    supabase.auth.getSession().then(({ data }) => {
+      setSessao(data.session);
+      setCarregando(false);
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => setSessao(session));
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  async function entrar(event) {
+    event.preventDefault();
+    setErro("");
+    if (!ADMIN_EMAIL) {
+      setErro("Configure VITE_ADMIN_EMAIL no ambiente do site antes de entrar.");
+      return;
+    }
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: login === "administrador" ? ADMIN_EMAIL : login,
+      password: senha,
+    });
+    if (error) {
+      setErro(error.message);
+      return;
+    }
+    const { data: admin, error: adminError } = await supabase
+      .from("admin_users")
+      .select("user_id")
+      .eq("user_id", data.user.id)
+      .maybeSingle();
+    if (adminError || !admin) {
+      await supabase.auth.signOut();
+      setErro("Esta conta não possui permissão de administrador.");
+      return;
+    }
+    setSessao(data.session);
+    setSenha("");
+  }
+
+  async function sair() {
+    await supabase.auth.signOut();
+    setSessao(null);
+  }
+
+  if (!supabaseConfigurado()) {
+    return <AdminLayout><AdminMessage title="Painel ainda não configurado">Crie o projeto Supabase, preencha as variáveis de ambiente e execute o arquivo <code>supabase/schema.sql</code>.</AdminMessage></AdminLayout>;
+  }
+  if (carregando || !catalogo) {
+    return <AdminLayout><AdminMessage title="Carregando painel">Aguarde enquanto o catálogo é carregado.</AdminMessage></AdminLayout>;
+  }
+  if (!sessao) {
+    return (
+      <AdminLayout>
+        <form className="admin-login" onSubmit={entrar}>
+          <p className="eyebrow">ÁREA RESTRITA</p>
+          <h1>Administração</h1>
+          <p>Entre para revisar fotos repetidas, alterar capas e atualizar os álbuns.</p>
+          <label>Login<input value={login} onChange={(event) => setLogin(event.target.value)} autoComplete="username" /></label>
+          <label>Senha<input type="password" value={senha} onChange={(event) => setSenha(event.target.value)} autoComplete="current-password" required /></label>
+          {erro && <p className="admin-error">{erro}</p>}
+          <button className="admin-primary" type="submit">Entrar</button>
+          <a href="#inicio">Voltar ao catálogo</a>
+        </form>
+      </AdminLayout>
+    );
+  }
+
+  const produto = catalogo.produtos.find((item) => item.id === produtoId) || catalogo.produtos[0];
+  async function atualizar() {
+    const novoCatalogo = await carregarCatalogo();
+    onCatalogoAtualizado(novoCatalogo);
+  }
+  async function ocultarFoto(foto) {
+    setErro("");
+    const { error } = await supabase.from("catalog_photo_changes").upsert({
+      product_id: produto.id,
+      photo_path: foto,
+      action: "hidden",
+      photo_url: null,
+      created_by: sessao.user.id,
+    }, { onConflict: "product_id,photo_path" });
+    if (error) setErro(error.message);
+    else { setMensagem("Foto removida do catálogo."); await atualizar(); }
+  }
+  async function definirCapa(foto) {
+    setErro("");
+    const { error } = await supabase.from("catalog_covers").upsert({
+      product_id: produto.id,
+      photo_path: foto,
+      created_by: sessao.user.id,
+    });
+    if (error) setErro(error.message);
+    else { setMensagem("Capa atualizada."); await atualizar(); }
+  }
+  async function adicionarFotos(event) {
+    const arquivos = [...event.target.files];
+    for (const arquivo of arquivos) {
+      const caminho = `${sessao.user.id}/${produto.id}/${crypto.randomUUID()}-${arquivo.name}`;
+      const upload = await supabase.storage.from("catalogo-admin").upload(caminho, arquivo, { upsert: false });
+      if (upload.error) { setErro(upload.error.message); continue; }
+      const { data: url } = supabase.storage.from("catalogo-admin").getPublicUrl(caminho);
+      const { error } = await supabase.from("catalog_photo_changes").upsert({
+        product_id: produto.id,
+        photo_path: caminho,
+        photo_url: url.publicUrl,
+        action: "added",
+        created_by: sessao.user.id,
+      }, { onConflict: "product_id,photo_path" });
+      if (error) setErro(error.message);
+    }
+    event.target.value = "";
+    await atualizar();
+    setMensagem("Upload concluído.");
+  }
+
+  return (
+    <AdminLayout>
+      <div className="admin-header">
+        <div><p className="eyebrow">ÁREA RESTRITA</p><h1>Editar catálogo</h1></div>
+        <div><button className="admin-secondary" onClick={sair}>Sair</button><a className="admin-secondary" href="#inicio">Catálogo</a></div>
+      </div>
+      <div className="admin-toolbar">
+        <label>Álbum
+          <select value={produto.id} onChange={(event) => setProdutoId(event.target.value)}>
+            {catalogo.produtos.map((item) => <option value={item.id} key={item.id}>{item.time}</option>)}
+          </select>
+        </label>
+        <label className="upload-button">Adicionar fotos<input type="file" accept="image/*" multiple onChange={adicionarFotos} /></label>
+      </div>
+      {mensagem && <p className="admin-success">{mensagem}</p>}
+      {erro && <p className="admin-error">{erro}</p>}
+      <div className="admin-photo-grid">
+        {produto.fotos.map((foto) => (
+          <div className="admin-photo" key={foto}>
+            <img src={asset(foto)} alt="" />
+            <div><button onClick={() => definirCapa(foto)}>{produto.capa === foto ? "Capa atual" : "Usar como capa"}</button><button className="danger" onClick={() => ocultarFoto(foto)}>Excluir</button></div>
+          </div>
+        ))}
+      </div>
+    </AdminLayout>
+  );
+}
+
+function AdminLayout({ children }) {
+  return <main className="admin-page"><a className="brand" href="#inicio"><span className="brand-mark"><Sparkles size={19} /></span><span>VESTIÁRIO<small>ADMINISTRAÇÃO</small></span></a>{children}</main>;
+}
+
+function AdminMessage({ title, children }) {
+  return <section className="admin-message"><h1>{title}</h1><p>{children}</p><a href="#inicio">Voltar ao catálogo</a></section>;
 }
 
 function WhatsAppIcon() {
