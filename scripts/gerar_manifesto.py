@@ -46,10 +46,14 @@ CLUBES_BRASILEIROS = (
     "Paysandu", "América",
 )
 SELECOES = (
-    "Brasil", "Brazil", "Argentina", "França", "Portugal", "Espanha", "Spain", "Inglaterra",
+    "Brasil", "Argentina", "França", "Portugal", "Espanha", "Inglaterra",
     "Alemanha", "Itália", "Holanda", "Uruguai", "Chile", "Colômbia",
     "México", "Japão", "Nigéria", "Estados Unidos",
 )
+ALIASES_TIMES = {
+    "brazil": "Brasil",
+    "spain": "Espanha",
+}
 OUTROS_TIMES_POPULARES = (
     "Real Madrid", "Barcelona", "Manchester City", "PSG", "Bayern Munich",
     "Liverpool", "Manchester United", "Chelsea", "Arsenal", "Juventus",
@@ -96,6 +100,11 @@ def nome_de_time_preferido(atual: str, candidato: str) -> str:
     if candidato_ruim != atual_ruim:
         return candidato if candidato_ruim < atual_ruim else atual
     return candidato if len(candidato) < len(atual) else atual
+
+
+def nome_de_time_canonico(nome: str) -> str:
+    """Unifica grafias em inglês para o nome exibido no catálogo."""
+    return ALIASES_TIMES.get(normalizar_texto(nome), nome)
 
 
 def rotulo_produto(nome: str) -> str:
@@ -192,6 +201,7 @@ def gerar() -> None:
         for time in sorted(publico.iterdir(), key=lambda item: item.name.casefold()):
             if not time.is_dir():
                 continue
+            time_canonico = nome_de_time_canonico(time.name)
 
             fotos = [
                 arquivo
@@ -216,10 +226,10 @@ def gerar() -> None:
                 ]
                 produtos.append(
                     {
-                        "id": f"{publico_manifesto}/{time.name}",
+                        "id": f"{publico_manifesto}/{time_canonico}",
                         "publico": publico_manifesto,
-                        "time": time.name,
-                        "nome": time.name,
+                        "time": time_canonico,
+                        "nome": time_canonico,
                         "capa": fotos_manifesto[0],
                         "fotos": fotos_manifesto,
                     }
