@@ -2,6 +2,7 @@
 
 import json
 import re
+import unicodedata
 from pathlib import Path
 
 
@@ -34,6 +35,60 @@ TERMOS_EXCLUIDOS = (
 MIN_DIMENSAO_PRODUTO = 300
 PROPORCAO_MINIMA = 0.70
 PROPORCAO_MAXIMA = 1.15
+
+# A ordem é deliberada: clubes brasileiros, seleções e demais clubes.
+CLUBES_BRASILEIROS = (
+    "Flamengo", "Corinthians", "Palmeiras", "São Paulo", "Vasco da Gama",
+    "Grêmio", "Santos", "Cruzeiro", "Atlético Mineiro", "Internacional",
+    "Fluminense", "Botafogo", "Bahia", "Athletico Paranaense", "Sport Recife",
+    "Fortaleza", "Ceará Sporting", "Coritiba", "Vitória", "Bragantino",
+    "Cuiabá", "Goiás", "Chapecoense", "Náutico", "Santa Cruz", "Remo",
+    "Paysandu", "América",
+)
+SELECOES = (
+    "Brasil", "Brazil", "Argentina", "França", "Portugal", "Espanha", "Spain", "Inglaterra",
+    "Alemanha", "Itália", "Holanda", "Uruguai", "Chile", "Colômbia",
+    "México", "Japão", "Nigéria", "Estados Unidos",
+)
+OUTROS_TIMES_POPULARES = (
+    "Real Madrid", "Barcelona", "Manchester City", "PSG", "Bayern Munich",
+    "Liverpool", "Manchester United", "Chelsea", "Arsenal", "Juventus",
+    "Inter Milan", "AC Milan", "Borussia Dortmund", "Tottenham", "Atlético Madrid",
+    "Boca Juniors", "River Plate", "Benfica", "FC Porto", "Ajax",
+    "Napoli", "Roma", "Inter Miami CF", "Celtic", "Feyenoord",
+    "PSV Eindhoven", "Monterrey", "Chivas de Guadalajara", "Colo Colo",
+)
+
+
+def normalizar_texto(texto: str) -> str:
+    sem_acentos = unicodedata.normalize("NFKD", texto)
+    return "".join(caractere for caractere in sem_acentos if not unicodedata.combining(caractere)).casefold()
+
+
+def mapa_de_prioridade(nomes: tuple[str, ...]) -> dict[str, int]:
+    return {normalizar_texto(nome): indice for indice, nome in enumerate(nomes)}
+
+
+PRIORIDADE_BRASILEIROS = mapa_de_prioridade(CLUBES_BRASILEIROS)
+PRIORIDADE_SELECOES = mapa_de_prioridade(SELECOES)
+PRIORIDADE_OUTROS = mapa_de_prioridade(OUTROS_TIMES_POPULARES)
+
+
+def chave_de_ordenacao(produto: dict[str, object]) -> tuple[int, int, str, int, str]:
+    time = str(produto["time"])
+    time_normalizado = normalizar_texto(time)
+    if time_normalizado in PRIORIDADE_BRASILEIROS:
+        grupo, prioridade = 0, PRIORIDADE_BRASILEIROS[time_normalizado]
+    elif time_normalizado in PRIORIDADE_SELECOES:
+        grupo, prioridade = 1, PRIORIDADE_SELECOES[time_normalizado]
+    else:
+        grupo = 2
+        prioridade = PRIORIDADE_OUTROS.get(time_normalizado, len(PRIORIDADE_OUTROS))
+
+    publico_prioridade = {"masculino": 0, "feminino": 1, "infantil": 2}.get(
+        str(produto["publico"]), 3
+    )
+    return grupo, prioridade, time_normalizado, publico_prioridade, normalizar_texto(str(produto["nome"]))
 
 
 def rotulo_produto(nome: str) -> str:
@@ -157,6 +212,7 @@ def gerar() -> None:
                     }
                 )
 
+    produtos.sort(key=chave_de_ordenacao)
     DESTINO.parent.mkdir(parents=True, exist_ok=True)
     DESTINO.write_text(
         json.dumps(

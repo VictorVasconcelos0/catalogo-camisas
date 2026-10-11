@@ -57,7 +57,7 @@ function App() {
     const nomes = produtos
       .filter((produto) => publico === "todos" || produto.publico === publico)
       .map((produto) => produto.time);
-    return ["todos", ...new Set(nomes.sort((a, b) => a.localeCompare(b)))] ;
+    return ["todos", ...new Set(nomes)];
   }, [produtos, publico]);
 
   const filtrados = useMemo(() => {
