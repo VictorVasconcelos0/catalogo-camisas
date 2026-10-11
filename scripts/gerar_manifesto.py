@@ -91,6 +91,15 @@ def chave_de_ordenacao(produto: dict[str, object]) -> tuple[int, int, str, int, 
     return grupo, prioridade, time_normalizado, publico_prioridade, normalizar_texto(str(produto["nome"]))
 
 
+def nome_de_time_preferido(atual: str, candidato: str) -> str:
+    """Escolhe a grafia mais legível quando o mesmo time tem pastas variantes."""
+    atual_ruim = atual.count("\ufffd") + atual.count("?")
+    candidato_ruim = candidato.count("\ufffd") + candidato.count("?")
+    if candidato_ruim != atual_ruim:
+        return candidato if candidato_ruim < atual_ruim else atual
+    return candidato if len(candidato) < len(atual) else atual
+
+
 def rotulo_produto(nome: str) -> str:
     """Converte o nome técnico do arquivo em um título legível."""
     nome = re.sub(r"__foto_\d+\.(?:jpg|jpeg|png|webp)$", "", nome, flags=re.I)
@@ -189,29 +198,48 @@ def gerar() -> None:
                 )
             ]
 
-            grupos = {}
+            arquivos_validos = []
             for foto in fotos:
                 produto = foto.name.split("__foto_")[0]
-                grupos.setdefault(produto, []).append(foto)
+                if produto_eh_camisa(produto):
+                    arquivos_validos.append(foto)
 
-            for produto, arquivos in sorted(grupos.items()):
-                if not produto_eh_camisa(produto):
-                    continue
-
+            if arquivos_validos:
+                caminho_base = f"catalogo_organizado/{publico.name}/{time.name}"
+                fotos_manifesto = [
+                    f"{caminho_base}/{arquivo.name}" for arquivo in arquivos_validos
+                ]
                 produtos.append(
                     {
-                        "id": f"{publico.name}/{time.name}/{produto}",
+                        "id": f"{publico.name}/{time.name}",
                         "publico": publico.name,
                         "time": time.name,
-                        "nome": rotulo_produto(arquivos[0].name),
-                        "capa": f"catalogo_organizado/{publico.name}/{time.name}/{arquivos[0].name}",
-                        "fotos": [
-                            f"catalogo_organizado/{publico.name}/{time.name}/{arquivo.name}"
-                            for arquivo in arquivos
-                        ],
+                        "nome": time.name,
+                        "capa": fotos_manifesto[0],
+                        "fotos": fotos_manifesto,
                     }
                 )
 
+    consolidados = {}
+    for produto in produtos:
+        chave = (str(produto["publico"]), normalizar_texto(str(produto["time"])))
+        existente = consolidados.get(chave)
+        if existente is None:
+            consolidados[chave] = produto
+            continue
+
+        existente["time"] = nome_de_time_preferido(
+            str(existente["time"]), str(produto["time"])
+        )
+        existente["nome"] = existente["time"]
+        existente["fotos"].extend(produto["fotos"])
+        existente["capa"] = existente["fotos"][0]
+        existente["id"] = f"{existente['publico']}/{existente['time']}"
+
+    produtos = list(consolidados.values())
+    for produto in produtos:
+        produto["fotos"] = sorted(produto["fotos"], key=normalizar_texto)
+        produto["capa"] = produto["fotos"][0]
     produtos.sort(key=chave_de_ordenacao)
     DESTINO.parent.mkdir(parents=True, exist_ok=True)
     DESTINO.write_text(
