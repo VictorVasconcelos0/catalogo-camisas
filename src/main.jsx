@@ -17,8 +17,6 @@ import "./styles.css";
 const PUBLICOS = [
   { id: "todos", label: "Tudo", emoji: "✦" },
   { id: "masculino", label: "Masculino", emoji: "◒" },
-  { id: "feminino", label: "Feminino", emoji: "◓" },
-  { id: "infantil", label: "Infantil", emoji: "✿" },
   { id: "outros", label: "Outros", emoji: "＋" },
 ];
 

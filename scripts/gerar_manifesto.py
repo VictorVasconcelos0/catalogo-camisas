@@ -85,9 +85,7 @@ def chave_de_ordenacao(produto: dict[str, object]) -> tuple[int, int, str, int, 
         grupo = 2
         prioridade = PRIORIDADE_OUTROS.get(time_normalizado, len(PRIORIDADE_OUTROS))
 
-    publico_prioridade = {"masculino": 0, "feminino": 1, "infantil": 2}.get(
-        str(produto["publico"]), 3
-    )
+    publico_prioridade = {"masculino": 0}.get(str(produto["publico"]), 1)
     return grupo, prioridade, time_normalizado, publico_prioridade, normalizar_texto(str(produto["nome"]))
 
 
@@ -184,6 +182,13 @@ def gerar() -> None:
         if not publico.is_dir():
             continue
 
+        # Os álbuns femininos e infantis fazem parte do catálogo geral do time.
+        # Mantemos os caminhos físicos originais para não apagar nem mover fotos.
+        publico_manifesto = (
+            "masculino" if publico.name.casefold() in {"feminino", "infantil"}
+            else publico.name
+        )
+
         for time in sorted(publico.iterdir(), key=lambda item: item.name.casefold()):
             if not time.is_dir():
                 continue
@@ -211,8 +216,8 @@ def gerar() -> None:
                 ]
                 produtos.append(
                     {
-                        "id": f"{publico.name}/{time.name}",
-                        "publico": publico.name,
+                        "id": f"{publico_manifesto}/{time.name}",
+                        "publico": publico_manifesto,
                         "time": time.name,
                         "nome": time.name,
                         "capa": fotos_manifesto[0],
